@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="es-MX">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>xivit </title>
+    <link rel="icon" href="/favicon.png" type="image/x-icon" />
+    <link rel="stylesheet" href="style.css" />
+
+
+    <link rel="manifest" href="/manifest.json">
+
+    <link rel="apple-touch-icon" href="/images/hello-icon-152.png">
+
+    <meta name="theme-color" content="white" />
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="xivichat">
+    <meta name="msapplication-TileImage" content="images/hello-icon-144.png">
+    <meta name="msapplication-TileColor" content="#017db">
+
+    <style>
+        input[type="checkbox"] {
+            display: none;
+        }
+        
+        input[type="checkbox"]:checked~.modal,
+        input[type="checkbox"]:checked~.modal-background {
+            display: block;
+        }
+        
+        .modal-background {
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            position: fixed;
+            top: 0;
+            left: 0;
+            display: none;
+            z-index: 9998;
+        }
+        
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            margin: auto;
+            display: none;
+            width: 300px;
+            height: 300px;
+            background-color: var(--main-dark);
+            box-sizing: border-box;
+            z-index: 9999;
+            align-items: center;
+        }
+        
+        .modal>p {
+            padding: 15px;
+            margin: 0;
+        }
+        
+        .modal-header {
+            background-color: #181717;
+            box-sizing: border-box;
+            height: 50px;
+        }
+        
+        .modal-header label {
+            box-sizing: border-box;
+            line-height: 50px;
+            padding: 0 15px 0 15px;
+            cursor: pointer;
+            align-items: center;
+        }
+        
+        .modal-header label:hover img {
+            opacity: 0.6;
+            align-items: center;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+            width: 50%;
+            text-align: center;
+        }
+        /* below is optional, it is just an example for the blue button */
+        
+        .example-label {
+            box-sizing: border-box;
+            background-color: var(--main-dark);
+            color: #f9f9f9;
+            cursor: pointer;
+        }
+        
+        .example-label:hover {
+            background-color: var(--main-dark);
+            align-items: center;
+        }
+        
+        .icon-bar {
+            width: 100%;
+            background-color: var(--main-darklg);
+            position: fixed;
+            /* Set the navbar to fixed position */
+            top: 0;
+            /* Position the navbar at the top of the page */
+            width: 100%;
+            align-items: center;
+            justify-content: center;
+            font-family: "Poppins", sans-serif;
+            color: var(--main-light);
+        }
+        
+        .icon-bar a {
+            float: left;
+            width: 33.33%;
+            text-decoration: none;
+            padding: 10px 0;
+            transition: all 0.3s ease;
+            color: white;
+            font-size: 20px;
+        }
+        
+        div.gallery {
+            background-color: var(--main-dark);
+        }
+        
+        div.gallery img {
+            width: 100%;
+            height: auto;
+            background-color: var(--main-dark);
+        }
+        
+        div.desc {
+            padding: 15px;
+            text-align: center;
+            background-color: var(--main-dark);
+        }
+        
+        * {
+            box-sizing: border-box;
+        }
+        
+        .responsive {
+            padding: 0 6px;
+            float: left;
+            width: 25%;
+            background-color: var(--main-dark);
+        }
+        
+        @media only screen and (max-width: 700px) {
+            .responsive {
+                width: 49.99999%;
+                margin: 6px 0;
+            }
+        }
+        
+        @media only screen and (max-width: 500px) {
+            .responsive {
+                width: 50%;
+            }
+        }
+        
+        .clearfix:after {
+            content: "";
+            display: table;
+            clear: both;
+        }
+    </style>
+
+
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://kit.fontawesome.com/c939d0e917.js"></script>
+    <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
+    <script>
+        const ROOM_ID = "<%= roomId %>";
+    </script>
+</head>
+
+<body>
+
+    <div class="icon-bar">
+        <a href="#" style="text-align: left; align-items: center">  &nbsp;  &nbsp; 
+            <input type="checkbox" id="modal">
+            <label for="modal"><i class="fas fa-bars" ></i></label>
+            <label for="modal" class="modal-background"></label>
+            <div class="modal">
+               <!--  <label for="modal">
+                        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAdVBMVEUAAABNTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU0N3NIOAAAAJnRSTlMAAQIDBAUGBwgRFRYZGiEjQ3l7hYaqtLm8vsDFx87a4uvv8fP1+bbY9ZEAAAB8SURBVBhXXY5LFoJAAMOCIP4VBRXEv5j7H9HFDOizu2TRFljedgCQHeocWHVaAWStXnKyl2oVWI+kd1XLvFV1D7Ng3qrWKYMZ+MdEhk3gbhw59KvlH0eTnf2mgiRwvQ7NW6aqNmncukKhnvo/zzlQ2PR/HgsAJkncH6XwAcr0FUY5BVeFAAAAAElFTkSuQmCC" width="16" height="16" alt=""  align-items="center;">
+                </label> -->
+                <div class="modal-header">
+                
+                    <br><br>
+                            <div class="options__buttonx ">
+                                &nbsp; &nbsp;<i class="fa fa-video-camera  " id="stopVideo "></i> &nbsp; &nbsp; &nbsp; <i class="fa fa-microphone  " id="muteButton "></i> &nbsp; &nbsp; &nbsp; <i class="fa fa-comment " id="showChat "></i> &nbsp; &nbsp; <i class="fas fa-user-plus "
+                                    id="inviteButton "></i><i class="fas fa-share-square"></i>&nbsp; &nbsp; <br><br> <label for="modal"><i class="fa fa-close  "></i></label>&nbsp; 
+                            </div>
+                           
+                         
+
+                            
+                </div>
+              
+
+              
+
+            </div>
+        </a>
+        <a href="#" style="text-align: center;  justify-content: center;  color: var(--main-light)">
+            <b>xivit</b>
+        </a>
+        <a href=" # " style="text-align: right; justify-content: center "><i class="fa fa-comment " ></i>   &nbsp;  &nbsp; </a>
+
+
+        <div class="logo ">
+            <div class="header__back ">
+                <i class="fas fa-angle-left "></i>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 
+    <div class="responsive ">
+        <div class="gallery ">
+            <img src="https://www.w3schools.com/css/img_5terre.jpg " alt="Cinque Terre " width="600 " height="400 "> </div>
+    </div>
+
+
+    <div class="responsive ">
+        <div class="gallery ">
+            <img src="https://www.w3schools.com/css/img_5terre.jpg " alt="Forest " width="600 " height="400 ">
+        </div>
+    </div>
+
+    <div class="responsive ">
+        <div class="gallery ">
+            <img src="https://www.w3schools.com/css/img_5terre.jpg " alt="Northern Lights " width="600 " height="400 ">
+        </div>
+    </div>
+
+    <div class="responsive ">
+        <div class="gallery ">
+            <img src="https://www.w3schools.com/css/img_5terre.jpg " alt="Mountains " width="600 " height="400 ">
+        </div>
+    </div>
+
+    <div class="clearfix "></div>
+ -->
+
+
+
+    <!--   <div class="header ">
+        <div class="logo ">
+            <div class="header__back ">
+                <i class="fas fa-angle-left "></i>
+            </div>
+
+
+
+
+
+            <h3>
+                <b> 
+                    <input type="checkbox " id="modal ">
+                    <label for="modal ">&nbsp; ☰     &nbsp; &nbsp;   &nbsp; &nbsp; &nbsp;   &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;   <i class="fa fa-comment " ></i>   xibit  &nbsp; &nbsp; </label>
+                    <label for="modal " class="modal-background "></label>
+                    <div class="modal ">
+                        <div class="modal-header ">
+                            <h3>xivit</h3>
+                            <label for="modal ">
+                                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAdVBMVEUAAABNTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU0N3NIOAAAAJnRSTlMAAQIDBAUGBwgRFRYZGiEjQ3l7hYaqtLm8vsDFx87a4uvv8fP1+bbY9ZEAAAB8SURBVBhXXY5LFoJAAMOCIP4VBRXEv5j7H9HFDOizu2TRFljedgCQHeocWHVaAWStXnKyl2oVWI+kd1XLvFV1D7Ng3qrWKYMZ+MdEhk3gbhw59KvlH0eTnf2mgiRwvQ7NW6aqNmncukKhnvo/zzlQ2PR/HgsAJkncH6XwAcr0FUY5BVeFAAAAAElFTkSuQmCC
+            " width="16 " height="16 " alt=" ">
+                            </label>
+                        </div>
+                        <div class="options ">
+                            <div class="options__left ">
+                                <div id="stopVideo " class="options__button ">
+                                    <i class="fa fa-video-camera "></i>
+                                </div>
+                                <div id="muteButton " class="options__button ">
+                                    <i class="fa fa-microphone "></i>
+                                </div>
+                                <div id="showChat " class="options__button ">
+                                    <i class="fa fa-comment "></i>
+                                </div>
+                                <div id="inviteButton " class="options__button ">
+                                    <i class="fas fa-user-plus "></i><i class="fas fa-share-square "></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+            </h3>
+            -->
+
+    <div class="main ">
+
+        <div class="main__left responsive ">
+            <div class="videos__group  responsive">
+                <div id="video-grid responsive">
+
+                </div>
+
+            </div>
+
+
+            <div class="options ">
+                <!--    <div class="options__leftx ">
+                    <span>
+                    <div id="stopVideo " class="options__button ">
+                        <i class="fa fa-video-camera "></i>
+                    </div></span>
+                    <span>
+                    <div id="muteButton " class="options__button ">
+                        <i class="fa fa-microphone "></i>
+                    </div></span>
+                    <span> <div id="showChat " class="options__button ">
+                        <i class="fa fa-comment "></i>
+                    </div>
+                    </span>
+                </div> -->
+                <div class="options__buttonx ">
+                    &nbsp; &nbsp;<i class="fa fa-video-camera  " id="stopVideo "></i> &nbsp; &nbsp; &nbsp; <i class="fa fa-microphone  " id="muteButton "></i> &nbsp; &nbsp; &nbsp; <i class="fa fa-comment " id="showChat "></i> &nbsp; &nbsp; <i class="fas fa-user-plus "
+                        id="inviteButton "></i><i class="fas fa-share-square"></i>&nbsp; &nbsp;
+                </div>
+                <!-- <div class="options__right ">
+                    <div id="inviteButton " class="options__button ">
+                        <i class="fas fa-user-plus "></i>
+                    </div>
+                </div> -->
+            </div>
+        </div>
+        <div class="main__right ">
+            <div class="main__chat_window ">
+                <div class="messages ">
+                </div>
+            </div>
+            <div class="main__message_container ">
+                <input id="chat_message " type="text " autocomplete="off " placeholder="Hola! ">
+                <div id="send " class="options__button ">
+                    <i class="fa fa-paper-plane " aria-hidden="true "></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+</body>
+<script>
+    var mobileNav = {
+        // Variables
+        $overlayNav: $('.overlay--nav'),
+        $overlayNavChild: $('.overlay--nav').children('span'),
+        $overlayContent: $('.overlay--content'),
+        $overlayContentChild: $('.overlay--content').children('span'),
+        $navTrigger: $('.nav__trigger'),
+        $nav: $('.nav--mobile'),
+        transitionEnd: 'webkitTransitionEnd otransitionend oTransitionEnd msTransitionEnd transitionend',
+
+        init: function() {
+            var self = this;
+
+            // Init the layers
+            this.initLayers();
+            $(window).on('resize', function() {
+                self.initLayers();
+            });
+
+            // Handle the transitions
+            this.$navTrigger.on('click', function(e) {
+                e.preventDefault();
+
+                if (!self.$navTrigger.hasClass('is-active')) {
+                    // .nav--trigger active
+                    self.$navTrigger.addClass('is-active');
+
+                    // .overlay--nav active
+                    self.$overlayNavChild.addClass('is-active').one(self.transitionEnd, function() {
+                        // .nav active
+                        self.$nav.addClass('is-active');
+                    });
+
+                    // no-csstransitions fallback
+                    if ($('html').hasClass('no-csstransitions')) {
+                        self.$nav.addClass('is-active');
+                    }
+                } else {
+                    // .nav inactive
+                    self.$nav.removeClass('is-active').one(self.transitionEnd, function() {
+                        // .overlay--nav inactive
+                        self.$overlayNavChild.removeClass('is-active').off();
+
+                        // .nav--trigger inactive
+                        self.$navTrigger.removeClass('is-active');
+                    });
+
+                    // no-csstransitions fallback
+                    if ($('html').hasClass('no-csstransitions')) {
+                        self.$overlayNavChild.removeClass('is-active');
+                        self.$navTrigger.removeClass('is-active');
+                    }
+                }
+            });
+        },
+
+        initLayers: function() {
+            var self = this;
+            var diameter = (Math.sqrt(Math.pow($(window).height(), 2) + Math.pow($(window).width(), 2)) * 2);
+
+            self.$overlayNavChild.css({
+                scaleX: 0,
+                scaleY: 0,
+                translateZ: 0,
+                height: diameter + 'px',
+                width: diameter + 'px',
+                top: -(diameter / 2) + 'px',
+                left: -(diameter / 2) + 'px',
+            });
+        }
+    }
+
+    mobileNav.init();
+</script>
+<script src="script.js "></script>
+<script src=" /js/main.js "></script>
+
+</html>
